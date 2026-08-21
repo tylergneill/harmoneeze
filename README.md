@@ -87,6 +87,16 @@ everything but Bass, loop the chorus, play — was run in the browser and works.
 The real-world `.mxl` files in `downloads/` were also driven through the full
 flow: a 5-part SATB+solo arrangement unzips, parses, renders, and plays.
 
+## Licence
+
+[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) — share and
+adapt freely, with attribution, non-commercially, under the same terms. See
+[LICENSE](LICENSE).
+
+This covers the source and its own assets, not third-party dependencies and not
+any score you import — imported scores stay under their own rights holders'
+terms and never leave your browser.
+
 ## Known gaps
 
 Untested territory, inherited from the test corpus: tuplets, mid-piece tempo or

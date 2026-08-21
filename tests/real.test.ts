@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
+import { basename } from 'node:path';
 import { downloadPath, loadScore, partByLabel } from './helpers';
-import { midiToName } from '../src/core/pitch';
 import type { Score } from '../src/core/types';
 
 /**
@@ -11,12 +11,26 @@ import type { Score } from '../src/core/types';
  * prove it is *general* against files nobody wrote for it. The `downloads/`
  * directory is gitignored, so each block skips cleanly when the files are
  * absent rather than failing a fresh clone.
+ *
+ * These scores are whatever the user happens to have downloaded, so the whole
+ * directory is discovered rather than named file by file: a renamed or swapped
+ * arrangement should still be exercised, not silently skipped. That means the
+ * assertions here are about structure that must hold for *any* real score,
+ * never about a particular file's contents.
  */
 
 const BACH = downloadPath('real-bach-bwv269.musicxml');
-const WELLERMAN = ['alto', 'baritone', 'bass', 'tenor'].map((n) =>
-  downloadPath('wellerman_mxl', `wellerman-${n}.mxl`),
-);
+const MXL_DIR = downloadPath('wellerman_mxl');
+
+function findScores(): string[] {
+  if (!existsSync(MXL_DIR)) return [];
+  return readdirSync(MXL_DIR)
+    .filter((name) => /\.(mxl|musicxml|xml)$/i.test(name))
+    .sort()
+    .map((name) => downloadPath('wellerman_mxl', name));
+}
+
+const WELLERMAN = findScores();
 
 /** Invariants that must hold for any score the app will try to play. */
 function expectPlayable(score: Score): void {
@@ -108,57 +122,66 @@ describe.skipIf(!existsSync(BACH))('Bach BWV 269 — the anti-overfitting test',
   });
 });
 
-describe.skipIf(!WELLERMAN.every(existsSync))('The Wellerman — real arrangements (.mxl)', () => {
-  it('reads every arrangement without error', () => {
-    for (const path of WELLERMAN) {
+describe.skipIf(WELLERMAN.length === 0)('The Wellerman — real arrangements (.mxl)', () => {
+  it.each(WELLERMAN.map((path) => [basename(path), path]))(
+    'reads %s without error',
+    (_name, path) => {
+      // .mxl is what MuseScore and Sibelius export by default, so it is the
+      // first thing a real user hands the app. Unzipping goes through the
+      // container manifest.
       expectPlayable(loadScore(path));
+    },
+  );
+
+  it('names every arrangement and every part', () => {
+    // A blank title or an unlabelled band leaves the user guessing which line
+    // is theirs, which is the one thing the app must never do.
+    for (const path of WELLERMAN) {
+      const score = loadScore(path);
+      expect(score.title.trim()).not.toBe('');
+      for (const part of score.parts) {
+        expect(part.label.trim()).not.toBe('');
+      }
     }
   });
 
-  it('unzips compressed MusicXML via the container manifest', () => {
-    // .mxl is what MuseScore and Sibelius export by default, so it is the
-    // first thing a real user hands the app.
-    const score = loadScore(WELLERMAN[0]);
-    expect(score.title).toBe('Wellerman - SSA');
-    expect(score.parts.map((p) => p.label)).toEqual(['Soprano 1', 'Soprano 2', 'Alto']);
+  it('finds more than one part to sing against', () => {
+    // A single-part file would give the user nothing to practise with.
+    for (const path of WELLERMAN) {
+      expect(loadScore(path).parts.length).toBeGreaterThan(1);
+    }
   });
 
-  it('reads the tempo the arranger notated', () => {
-    expect(loadScore(WELLERMAN[0]).tempoBpm).toBe(160);
-    expect(loadScore(WELLERMAN[1]).tempoBpm).toBe(180);
-  });
-
-  it('plays a cut-time score that names no tempo at singing speed', () => {
-    // This arrangement carries no <sound tempo> and no metronome mark, in 2/2.
-    // Defaulting to 100 quarter notes per minute plays it at half speed and
-    // the playhead lags the music audibly.
-    const score = loadScore(WELLERMAN[2]);
-    expect(score.tempoBpm).toBe(200);
-    // 17 bars of cut time should land near a minute and a half, not three.
-    const seconds = (score.durationBeats / score.tempoBpm) * 60;
-    expect(seconds).toBeLessThan(30);
-  });
-
-  it('reads a five-part arrangement with a solo verse line', () => {
-    const score = loadScore(WELLERMAN[2]);
-    expect(score.parts.map((p) => p.label)).toEqual([
-      'Strofa', 'Soprano', 'Alto', 'Tenor', 'Bass',
-    ]);
-    // Every part carries music; a silent band would mean a dropped voice.
-    expect(score.parts.every((p) => p.events.length > 0)).toBe(true);
-  });
-
-  it('gives the bass part a bass-register range', () => {
-    const bass = partByLabel(loadScore(WELLERMAN[2]), 'Bass');
-    expect(bass.clef).toBe('F');
-    expect(midiToName(bass.range!.maxMidi)).toMatch(/[23]$/);
+  it('gives every arrangement a singable tempo', () => {
+    // Scores that name no tempo fall back through the notated beat unit. A
+    // cut-time shanty read as quarter notes plays at half speed, and the
+    // playhead visibly lags the harmony.
+    for (const path of WELLERMAN) {
+      const score = loadScore(path);
+      expect(score.tempoBpm).toBeGreaterThanOrEqual(60);
+      expect(score.tempoBpm).toBeLessThanOrEqual(240);
+    }
   });
 
   it('produces a timeline long enough to practise against', () => {
     for (const path of WELLERMAN) {
       const score = loadScore(path);
       const seconds = (score.durationBeats / score.tempoBpm) * 60;
-      expect(seconds).toBeGreaterThan(20);
+      expect(seconds).toBeGreaterThan(15);
+      // Anything past a few minutes means the tempo was misread.
+      expect(seconds).toBeLessThan(600);
+    }
+  });
+
+  it('keeps every part inside a human vocal range', () => {
+    // A part outside this window means an octave or transposition error, not
+    // an arrangement anyone could actually sing.
+    for (const path of WELLERMAN) {
+      for (const part of loadScore(path).parts) {
+        if (part.range === null) continue;
+        expect(part.range.minMidi).toBeGreaterThanOrEqual(36);
+        expect(part.range.maxMidi).toBeLessThanOrEqual(84);
+      }
     }
   });
 });

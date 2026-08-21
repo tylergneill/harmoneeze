@@ -120,6 +120,9 @@ export function App() {
         <h1 className="brand">
           <Logo size={26} className="brand-mark" />
           <span className="wordmark">Harmoneeze</span>
+          <span className="version" title={`Harmoneeze ${__APP_VERSION__}`}>
+            v{__APP_VERSION__}
+          </span>
         </h1>
         <span className="spacer" />
         <span className="band-range">Practise one part against the rest</span>

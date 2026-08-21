@@ -148,6 +148,18 @@ textarea:focus {
   gap: 9px;
 }
 
+.version {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  /* Sits with the wordmark's baseline rather than its centre. */
+  align-self: flex-end;
+  padding-bottom: 1px;
+  margin-left: -3px;
+}
+
 /* The mark is drawn in currentColor, so it takes the brand gold from here. */
 .brand-mark {
   color: var(--brand);
