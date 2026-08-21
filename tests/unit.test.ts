@@ -204,6 +204,54 @@ describe('measure content', () => {
   });
 });
 
+describe('tempo', () => {
+  const timed = (attrs: string, body = '') =>
+    parse(score(`<measure number="1">${attrs}${body}${note('C', 4, 4)}</measure>`));
+
+  const cut = '<attributes><divisions>1</divisions><time><beats>2</beats><beat-type>2</beat-type></time></attributes>';
+
+  it('takes <sound tempo> as quarter notes per minute', () => {
+    expect(timed(ATTRS, '<sound tempo="132"/>').tempoBpm).toBe(132);
+  });
+
+  it('reads a <sound tempo> nested in a <direction>', () => {
+    expect(timed(ATTRS, '<direction><sound tempo="88"/></direction>').tempoBpm).toBe(88);
+  });
+
+  it('converts a metronome mark through its beat unit', () => {
+    // "half = 100" in cut time is 200 quarter notes per minute.
+    const s = timed(
+      cut,
+      '<direction><direction-type><metronome><beat-unit>half</beat-unit><per-minute>100</per-minute></metronome></direction-type></direction>',
+    );
+    expect(s.tempoBpm).toBe(200);
+  });
+
+  it('accounts for a dotted beat unit', () => {
+    const s = timed(
+      ATTRS,
+      '<direction><direction-type><metronome><beat-unit>quarter</beat-unit><beat-unit-dot/><per-minute>80</per-minute></metronome></direction-type></direction>',
+    );
+    expect(s.tempoBpm).toBe(120);
+  });
+
+  it('prefers <sound tempo> over a metronome mark', () => {
+    const s = timed(
+      ATTRS,
+      '<direction><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>60</per-minute></metronome></direction-type><sound tempo="140"/></direction>',
+    );
+    expect(s.tempoBpm).toBe(140);
+  });
+
+  it('scales the default by the beat unit when the score says nothing', () => {
+    // Real exports often carry no tempo at all. Treating the default as
+    // quarter notes in cut time plays a shanty at half speed, and the
+    // playhead visibly lags the music.
+    expect(timed(ATTRS).tempoBpm).toBe(100);
+    expect(timed(cut).tempoBpm).toBe(200);
+  });
+});
+
 describe('repeat structure', () => {
   const measures = (xml: string) => parseXml(score(xml)).children('part')[0].children('measure');
 

@@ -11,6 +11,7 @@ import {
   saveProject,
 } from '../storage/projects';
 import { Landing } from './Landing';
+import { Logo } from './Logo';
 import { ProjectView } from './ProjectView';
 
 export function App() {
@@ -27,9 +28,14 @@ export function App() {
   useEffect(() => {
     void (async () => {
       try {
+        // Storage bounds its own open request, so this settles either way.
         await refresh();
       } catch {
-        setError('Could not open local storage. Private browsing may be blocking it.');
+        setError(
+          'Could not open local storage, so saved pieces are unavailable. ' +
+            'Another tab may have this app open; private browsing can also block it. ' +
+            'You can still load a score for this session.',
+        );
       } finally {
         setReady(true);
       }
@@ -40,18 +46,29 @@ export function App() {
     async (file: File) => {
       setError(null);
       setBusy(true);
+      let project: Project;
       try {
         const bytes = await file.arrayBuffer();
         const score = parseScoreFile(file.name, bytes, parseXmlDom);
-        const project = createProject(score, { name: file.name, bytes });
-        await saveProject(project);
-        await refresh();
-        setCurrent(project);
+        project = createProject(score, { name: file.name, bytes });
       } catch (e) {
         setError(e instanceof Error ? e.message : 'That file could not be read.');
-      } finally {
         setBusy(false);
+        return;
       }
+
+      // The score parsed, so let the user practise it even if it cannot be
+      // stored. Failing to save is worth saying, but it is not a reason to
+      // throw away a piece they just loaded.
+      try {
+        await saveProject(project);
+        await refresh();
+      } catch {
+        setError('This piece is loaded but could not be saved, so it will be gone on reload.');
+      }
+
+      setCurrent(project);
+      setBusy(false);
     },
     [refresh],
   );
@@ -100,7 +117,8 @@ export function App() {
   return (
     <div className="app">
       <div className="topbar">
-        <h1>
+        <h1 className="brand">
+          <Logo size={26} className="brand-mark" />
           <span className="wordmark">Harmoneeze</span>
         </h1>
         <span className="spacer" />

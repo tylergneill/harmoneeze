@@ -14,6 +14,11 @@
   --text: #e8eaed;
   --text-dim: #9aa1ad;
   --text-faint: #6b7280;
+  /* Brand gold, from the logo. Identity only — the functional accent below
+     stays blue so the playhead and faders never read as "selected part". */
+  --brand: #e8b04b;
+  --brand-deep: #0f2b33;
+
   --accent: #6aa9ff;
   --accent-soft: rgba(106, 169, 255, 0.16);
   --focus: #ffcb6b;
@@ -137,13 +142,25 @@ textarea:focus {
   letter-spacing: 0.2px;
 }
 
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+/* The mark is drawn in currentColor, so it takes the brand gold from here. */
+.brand-mark {
+  color: var(--brand);
+  flex: none;
+}
+
 .topbar .spacer {
   flex: 1;
 }
 
 .wordmark {
   font-weight: 700;
-  color: var(--accent);
+  color: var(--brand);
   letter-spacing: 0.3px;
 }
 
@@ -334,10 +351,10 @@ textarea:focus {
   text-align: right;
 }
 
+/* Also width-from-content, for the same reason as `.ruler` above. */
 .band-canvas-wrap {
-  flex: 1;
+  flex: none;
   position: relative;
-  min-width: 0;
 }
 
 .band-canvas-wrap canvas {
@@ -375,13 +392,17 @@ textarea:focus {
   background: var(--panel);
 }
 
+/* Width is set inline from the score's length, never stretched by flex: the
+   ruler, the band canvases and the playhead overlay must all share one
+   coordinate space or a click maps to the wrong beat. */
 .ruler {
-  flex: 1;
+  flex: none;
   position: relative;
   height: 34px;
-  cursor: ew-resize;
+  /* A pointer, not a resize arrow: the primary action here is scrubbing. */
+  cursor: pointer;
   user-select: none;
-  min-width: 0;
+  touch-action: none;
 }
 
 .ruler canvas {
@@ -407,6 +428,20 @@ textarea:focus {
   width: 2px;
   background: var(--accent);
   box-shadow: 0 0 8px rgba(106, 169, 255, 0.5);
+}
+
+/* A grab handle sitting in the ruler, so the playhead reads as draggable
+   rather than as a passive progress indicator. */
+.playhead::before {
+  content: '';
+  position: absolute;
+  top: 7px;
+  left: -5px;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--accent);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
 .loop-shade {

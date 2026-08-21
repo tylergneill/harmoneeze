@@ -128,6 +128,17 @@ describe.skipIf(!WELLERMAN.every(existsSync))('The Wellerman — real arrangemen
     expect(loadScore(WELLERMAN[1]).tempoBpm).toBe(180);
   });
 
+  it('plays a cut-time score that names no tempo at singing speed', () => {
+    // This arrangement carries no <sound tempo> and no metronome mark, in 2/2.
+    // Defaulting to 100 quarter notes per minute plays it at half speed and
+    // the playhead lags the music audibly.
+    const score = loadScore(WELLERMAN[2]);
+    expect(score.tempoBpm).toBe(200);
+    // 17 bars of cut time should land near a minute and a half, not three.
+    const seconds = (score.durationBeats / score.tempoBpm) * 60;
+    expect(seconds).toBeLessThan(30);
+  });
+
   it('reads a five-part arrangement with a solo verse line', () => {
     const score = loadScore(WELLERMAN[2]);
     expect(score.parts.map((p) => p.label)).toEqual([

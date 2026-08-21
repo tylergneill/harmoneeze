@@ -65,17 +65,28 @@ export function ProjectView({ project, onChange, onBack }: Props) {
   // Drive the playhead from the audio clock, not from a timer of our own, so
   // the line on screen matches what is actually sounding.
   useEffect(() => {
-    let frame = 0;
-    const tick = () => {
+    const sync = () => {
       const engine = engineRef.current;
-      if (engine !== null) {
-        setPositionBeats(engine.positionBeats);
-        setIsPlaying(engine.isPlaying);
-      }
-      frame = requestAnimationFrame(tick);
+      if (engine === null) return;
+      setPositionBeats(engine.positionBeats);
+      setIsPlaying(engine.isPlaying);
     };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
+
+    let frame = requestAnimationFrame(function tick() {
+      sync();
+      frame = requestAnimationFrame(tick);
+    });
+
+    // requestAnimationFrame is throttled to a stop while the tab is in the
+    // background, which would leave the playhead frozen wherever it was and
+    // out of step with the audio on return. A slow timer keeps the displayed
+    // position honest; it costs nothing while the rAF loop is running.
+    const backstop = setInterval(sync, 250);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      clearInterval(backstop);
+    };
   }, []);
 
   /** Update mix state and persist it, in one place. */
@@ -252,7 +263,8 @@ export function ProjectView({ project, onChange, onBack }: Props) {
       />
 
       <div className="hint-bar">
-        Drag across the bar ruler to loop a span · click a part name to make it your focus ·{' '}
+        Click the bar ruler to jump, drag across it to loop a span · click a part name to make it
+        your focus ·{' '}
         <kbd>space</kbd> play · <kbd>S</kbd> just my part · <kbd>L</kbd> clear loop ·{' '}
         <kbd>0</kbd> reset faders
       </div>

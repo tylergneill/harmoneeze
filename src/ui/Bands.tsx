@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import type { MixState, Score } from '../core/types';
 import { midiToName } from '../core/pitch';
 import { bandColor, paintBand, paintRuler } from './bandPainter';
@@ -14,6 +14,9 @@ import { bandColor, paintBand, paintRuler } from './bandPainter';
 const LABEL_WIDTH = 168;
 const BAND_HEIGHT = 96;
 const RULER_HEIGHT = 34;
+
+/** Travel past which a press on the ruler is a loop drag, not a scrub. */
+const DRAG_THRESHOLD_PX = 5;
 
 interface Props {
   score: Score;
@@ -38,9 +41,28 @@ export function Bands({
 }: Props) {
   const rulerRef = useRef<HTMLCanvasElement>(null);
   const canvasRefs = useRef(new Map<string, HTMLCanvasElement>());
-  const [drag, setDrag] = useState<{ from: number; to: number } | null>(null);
+  const [drag, setDrag] = useState<{ from: number; to: number; isDrag: boolean } | null>(null);
+  /** The in-flight gesture. A ref, so listeners always see the current value. */
+  const gestureRef = useRef<{ from: number; isDrag: boolean } | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const contentWidth = Math.max(320, score.durationBeats * pixelsPerBeat);
+  // Stretch a short score to fill the viewport rather than stranding the bands
+  // in a narrow column. Measured once per layout, since every coordinate in
+  // this component derives from it.
+  const [available, setAvailable] = useState(0);
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (el === null) return;
+    const observer = new ResizeObserver(() => setAvailable(el.clientWidth - LABEL_WIDTH));
+    observer.observe(el);
+    setAvailable(el.clientWidth - LABEL_WIDTH);
+    return () => observer.disconnect();
+  }, []);
+
+  const naturalWidth = score.durationBeats * pixelsPerBeat;
+  const contentWidth = Math.max(320, naturalWidth, available);
+  // Beats-to-pixels must follow the stretched width, or clicks map wrongly.
+  const scale = score.durationBeats > 0 ? contentWidth / score.durationBeats : pixelsPerBeat;
 
   // Repaint whenever the layout or the mix changes. Not per frame: the
   // playhead is a DOM overlay, so animation never touches the canvases.
@@ -54,7 +76,7 @@ export function Bands({
         part,
         score,
         color: bandColor(index),
-        pixelsPerBeat,
+        pixelsPerBeat: scale,
         width: contentWidth,
         height: BAND_HEIGHT,
         dpr,
@@ -63,9 +85,9 @@ export function Bands({
     }
 
     if (rulerRef.current !== null) {
-      paintRuler(rulerRef.current, score, pixelsPerBeat, contentWidth, RULER_HEIGHT, dpr);
+      paintRuler(rulerRef.current, score, scale, contentWidth, RULER_HEIGHT, dpr);
     }
-  }, [score, pixelsPerBeat, contentWidth, mix.volumes]);
+  }, [score, scale, contentWidth, mix.volumes]);
 
   /**
    * Convert a pointer event to a beat position.
@@ -79,39 +101,73 @@ export function Bands({
     if (ruler === null) return 0;
     const rect = ruler.getBoundingClientRect();
     const x = clientX - rect.left;
-    return Math.max(0, Math.min(score.durationBeats, x / pixelsPerBeat));
+    return Math.max(0, Math.min(score.durationBeats, x / scale));
   };
 
-  // Drag on the ruler selects a loop region. Listeners go on the window so the
-  // drag survives the pointer leaving the ruler, which it always does.
-  useEffect(() => {
-    if (drag === null) return;
+  /**
+   * Begin a ruler gesture.
+   *
+   * A press that stays put is a scrub: the playhead follows the pointer, which
+   * is what a progress bar is expected to do. A press that travels far enough
+   * to be a deliberate drag becomes a loop selection instead. Distinguishing
+   * them by distance means the user does not have to learn two controls, and a
+   * mis-aimed click never silently redefines the loop.
+   *
+   * The live gesture is tracked in a ref rather than state, and the window
+   * listeners are attached here rather than in an effect. State updates are
+   * batched, so an effect keyed on the gesture would not have subscribed yet
+   * when a fast click's `pointerup` arrives, and the click would be lost. The
+   * `drag` state exists only to drive the selection preview.
+   */
+  const beginGesture = (clientX: number) => {
+    const from = beatsFromEvent(clientX);
+    gestureRef.current = { from, isDrag: false };
+    setDrag({ from, to: from, isDrag: false });
+    onSeek(from);
 
     const move = (e: PointerEvent) => {
-      setDrag((d) => (d === null ? null : { ...d, to: beatsFromEvent(e.clientX) }));
-    };
-    const up = (e: PointerEvent) => {
+      const gesture = gestureRef.current;
+      if (gesture === null) return;
+
       const to = beatsFromEvent(e.clientX);
-      onLoopRegion(drag.from, to);
+      if (!gesture.isDrag && Math.abs(to - gesture.from) * scale > DRAG_THRESHOLD_PX) {
+        gesture.isDrag = true;
+      }
+      // While it is still a scrub, keep the playhead under the pointer.
+      if (!gesture.isDrag) onSeek(to);
+      setDrag({ from: gesture.from, to, isDrag: gesture.isDrag });
+    };
+
+    const up = (e: PointerEvent) => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+
+      const gesture = gestureRef.current;
+      gestureRef.current = null;
       setDrag(null);
+      if (gesture === null) return;
+
+      const to = beatsFromEvent(e.clientX);
+      const isDrag =
+        gesture.isDrag || Math.abs(to - gesture.from) * scale > DRAG_THRESHOLD_PX;
+      if (isDrag) onLoopRegion(gesture.from, to);
+      else onSeek(to);
     };
 
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
-    return () => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-    };
-  }, [drag, onLoopRegion, pixelsPerBeat, score.durationBeats]);
+  };
 
   const loop = mix.loopRegion;
-  const playheadX = positionBeats * pixelsPerBeat;
-  const previewing = drag !== null;
-  const previewStart = drag === null ? 0 : Math.min(drag.from, drag.to) * pixelsPerBeat;
-  const previewWidth = drag === null ? 0 : Math.abs(drag.to - drag.from) * pixelsPerBeat;
+  const playheadX = positionBeats * scale;
+  // Only a real loop drag previews; a scrub leaves the existing loop shading in
+  // place so the user can see where they are seeking to within it.
+  const previewing = drag !== null && drag.isDrag;
+  const previewStart = drag === null ? 0 : Math.min(drag.from, drag.to) * scale;
+  const previewWidth = drag === null ? 0 : Math.abs(drag.to - drag.from) * scale;
 
   return (
-    <div className="bands-scroll">
+    <div className="bands-scroll" ref={scrollRef}>
       <div className="bands" style={{ width: LABEL_WIDTH + contentWidth }}>
         <div className="ruler-row">
           <div className="ruler-gutter">Bar</div>
@@ -120,11 +176,9 @@ export function Bands({
             style={{ width: contentWidth }}
             onPointerDown={(e) => {
               e.preventDefault();
-              const from = beatsFromEvent(e.clientX);
-              setDrag({ from, to: from });
+              beginGesture(e.clientX);
             }}
-            onDoubleClick={(e) => onSeek(beatsFromEvent(e.clientX))}
-            title="Drag to set a loop region · double-click to move the playhead"
+            title="Click or drag the playhead to scrub · drag across to set a loop region"
           >
             <canvas ref={rulerRef} />
           </div>
@@ -187,17 +241,17 @@ export function Bands({
             <>
               <div
                 className="loop-shade"
-                style={{ left: 0, width: loop.startBeats * pixelsPerBeat }}
+                style={{ left: 0, width: loop.startBeats * scale }}
               />
               <div
                 className="loop-shade"
                 style={{
-                  left: loop.endBeats * pixelsPerBeat,
-                  width: Math.max(0, contentWidth - loop.endBeats * pixelsPerBeat),
+                  left: loop.endBeats * scale,
+                  width: Math.max(0, contentWidth - loop.endBeats * scale),
                 }}
               />
-              <div className="loop-edge" style={{ left: loop.startBeats * pixelsPerBeat }} />
-              <div className="loop-edge" style={{ left: loop.endBeats * pixelsPerBeat }} />
+              <div className="loop-edge" style={{ left: loop.startBeats * scale }} />
+              <div className="loop-edge" style={{ left: loop.endBeats * scale }} />
             </>
           )}
 

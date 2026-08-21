@@ -26,17 +26,53 @@ interface StoredProject {
   notes: string;
 }
 
+/**
+ * How long to wait for the database before giving up.
+ *
+ * IndexedDB open requests do not fail when they are blocked — they wait
+ * indefinitely for whatever holds the old connection to let go. Without a
+ * bound, one stale connection leaves every call pending forever and the UI
+ * hangs with no error to report.
+ */
+const OPEN_TIMEOUT_MS = 4000;
+
 let dbPromise: Promise<IDBPDatabase> | null = null;
 
 function db(): Promise<IDBPDatabase> {
-  dbPromise ??= openDB(DB_NAME, DB_VERSION, {
-    upgrade(database) {
-      if (!database.objectStoreNames.contains(STORE)) {
-        const store = database.createObjectStore(STORE, { keyPath: 'id' });
-        store.createIndex('updatedAt', 'updatedAt');
-      }
-    },
-  });
+  if (dbPromise === null) {
+    const opening = openDB(DB_NAME, DB_VERSION, {
+      upgrade(database) {
+        if (!database.objectStoreNames.contains(STORE)) {
+          const store = database.createObjectStore(STORE, { keyPath: 'id' });
+          store.createIndex('updatedAt', 'updatedAt');
+        }
+      },
+      // Another tab is holding an old version open, or the database was
+      // deleted from under us. Drop the handle so the next call reconnects
+      // instead of reusing a connection that will never open.
+      blocked() {
+        dbPromise = null;
+      },
+      terminated() {
+        dbPromise = null;
+      },
+    });
+
+    dbPromise = Promise.race([
+      opening,
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error('Local storage is unavailable (the database did not open).')),
+          OPEN_TIMEOUT_MS,
+        ),
+      ),
+    ]).catch((error: unknown) => {
+      // Never cache a rejected promise: one transient failure would otherwise
+      // poison every later call for the lifetime of the page.
+      dbPromise = null;
+      throw error;
+    });
+  }
   return dbPromise;
 }
 

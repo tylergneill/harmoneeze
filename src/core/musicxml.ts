@@ -168,8 +168,48 @@ function readMeasure(measure: XmlElement, state: PartState): RawMeasure {
   };
 }
 
-/** Tempo in quarter-notes per minute from the first <sound tempo> found. */
-function readTempo(root: XmlElement): number {
+/** Quarter notes per beat for a `<beat-unit>` name, e.g. "half" -> 2. */
+const BEAT_UNIT_QUARTERS: Record<string, number> = {
+  breve: 8,
+  whole: 4,
+  half: 2,
+  quarter: 1,
+  eighth: 0.5,
+  '16th': 0.25,
+  '32nd': 0.125,
+};
+
+/** A `<metronome>` marking as quarter notes per minute, or null. */
+function metronomeToQuarterBpm(metronome: XmlElement): number | null {
+  const perMinute = childNumber(metronome, 'per-minute', 0);
+  if (perMinute <= 0) return null;
+
+  const unit = (childText(metronome, 'beat-unit') ?? 'quarter').trim().toLowerCase();
+  let quarters = BEAT_UNIT_QUARTERS[unit];
+  if (quarters === undefined) return null;
+
+  // A dot adds half again to the beat unit; two dots add a quarter more.
+  const dots = metronome.children('beat-unit-dot').length;
+  for (let i = 0; i < dots; i++) quarters *= 1.5;
+
+  return perMinute * quarters;
+}
+
+/**
+ * Playback tempo in quarter notes per minute.
+ *
+ * `<sound tempo>` is already defined as quarter notes per minute, so it wins
+ * when present. Failing that, a `<metronome>` marking is converted through its
+ * beat unit — "half = 100" in cut time is 200 quarters per minute, not 100.
+ *
+ * When the score says nothing at all (real exports often don't), the default
+ * is scaled by the notated beat unit for the same reason: a 2/2 shanty taken
+ * at 100 quarter-notes per minute plays at half the speed anyone would sing
+ * it, and the playhead visibly lags the music.
+ */
+function readTempo(root: XmlElement, beatType: number): number {
+  let metronomeBpm: number | null = null;
+
   for (const part of root.children('part')) {
     for (const measure of part.children('measure')) {
       for (const el of measure.children()) {
@@ -182,10 +222,26 @@ function readTempo(root: XmlElement): number {
           const tempo = Number(raw);
           if (Number.isFinite(tempo) && tempo > 0) return tempo;
         }
+
+        if (metronomeBpm === null && el.tag === 'direction') {
+          for (const type of el.children('direction-type')) {
+            const metronome = type.child('metronome');
+            if (metronome !== null) {
+              metronomeBpm = metronomeToQuarterBpm(metronome);
+              if (metronomeBpm !== null) break;
+            }
+          }
+        }
       }
     }
   }
-  return DEFAULT_TEMPO_BPM;
+
+  if (metronomeBpm !== null) return metronomeBpm;
+
+  // Scale the default by the notated beat: half-note beats (2/2) get twice the
+  // quarter-note rate, so cut time is not played at half speed.
+  const quartersPerBeat = beatType > 0 ? 4 / beatType : 1;
+  return DEFAULT_TEMPO_BPM * quartersPerBeat;
 }
 
 function readTitle(root: XmlElement, fallback: string): string {
@@ -423,7 +479,7 @@ export function parseMusicXml(root: XmlElement, fallbackTitle = 'Untitled'): Sco
     parts,
     measures,
     durationBeats,
-    tempoBpm: readTempo(root),
+    tempoBpm: readTempo(root, stateByPart[structuralIndex].beatType),
     warnings,
   };
 }
