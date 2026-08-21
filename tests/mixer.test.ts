@@ -32,6 +32,21 @@ describe('mixer link modes', () => {
     expect(Object.values(state.volumes)).toEqual(ids.map(() => DEFAULT_VOLUME));
   });
 
+  it('claims no part until the user picks one', () => {
+    // Defaulting to the first part would silently make the soprano "theirs"
+    // and quietly change what the link modes act on.
+    expect(initialMixState(score).focusPartId).toBeNull();
+  });
+
+  it('leaves every fader alone in "all except focus" with no focus set', () => {
+    const base = setLinkMode(initialMixState(score), 'all-except-focus');
+    const state = applyVolumeChange(base, S, 20, ids);
+    // With no referent the mode still must not corrupt the mix: the grabbed
+    // fader moves and, having nothing to exempt, the rest follow it.
+    expect(state.volumes[S]).toBe(20);
+    expect(state.volumes[A]).toBe(20);
+  });
+
   it('moves one fader alone in independent mode', () => {
     const state = applyVolumeChange(initialMixState(score), A, 20, ids);
     expect(state.volumes[A]).toBe(20);

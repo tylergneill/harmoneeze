@@ -263,8 +263,8 @@ export function ProjectView({ project, onChange, onBack }: Props) {
       />
 
       <div className="hint-bar">
-        Click the bar ruler to jump, drag across it to loop a span · click a part name to make it
-        your focus ·{' '}
+        Click the bar ruler to jump, drag across it to loop a span · mark your line with{' '}
+        <em>set as mine</em> to unlock "Just my part" and "All but mine" ·{' '}
         <kbd>space</kbd> play · <kbd>S</kbd> just my part · <kbd>L</kbd> clear loop ·{' '}
         <kbd>0</kbd> reset faders
       </div>

@@ -42,6 +42,7 @@ export function Transport({
   onTempoScale,
   onZoom,
 }: Props) {
+  const focusLabel = score.parts.find((p) => p.id === mix.focusPartId)?.label ?? 'your part';
   const tempo = score.tempoBpm * mix.tempoScale;
   const position = beatsToSeconds(positionBeats, tempo);
   const total = beatsToSeconds(
@@ -63,20 +64,39 @@ export function Transport({
       <div className="group">
         <label>Faders</label>
         <div className="seg">
-          {LINK_MODES.map((mode) => (
-            <button
-              key={mode.value}
-              className={mix.linkMode === mode.value ? 'on' : ''}
-              title={mode.title}
-              onClick={() => onLinkMode(mode.value)}
-            >
-              {mode.label}
-            </button>
-          ))}
+          {LINK_MODES.map((mode) => {
+            // "All except focus" has no referent until a part is claimed.
+            const needsFocus = mode.value === 'all-except-focus' && mix.focusPartId === null;
+            return (
+              <button
+                key={mode.value}
+                className={mix.linkMode === mode.value ? 'on' : ''}
+                disabled={needsFocus}
+                title={
+                  needsFocus
+                    ? 'Mark a part as yours first — use "set as mine" beside its name'
+                    : mode.value === 'all-except-focus'
+                      ? `Move every fader except ${focusLabel}`
+                      : mode.title
+                }
+                onClick={() => onLinkMode(mode.value)}
+              >
+                {mode.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      <button onClick={onSolo} title="Silence everything except the focus part">
+      <button
+        onClick={onSolo}
+        disabled={mix.focusPartId === null}
+        title={
+          mix.focusPartId === null
+            ? 'Mark a part as yours first — use "set as mine" beside its name'
+            : `Silence everything except ${focusLabel}`
+        }
+      >
         Just my part
       </button>
 

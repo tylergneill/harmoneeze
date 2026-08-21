@@ -183,9 +183,30 @@ export class PlaybackEngine {
     this.silenceAll();
   }
 
-  /** Current playhead position in quarter notes. */
+  /**
+   * Current playhead position in quarter notes.
+   *
+   * `transport.seconds` reports where the *scheduler* has reached, which runs
+   * ahead of the audible output by the context's lookAhead so that notes are
+   * queued before they must sound. Drawing that value puts the playhead
+   * slightly ahead of what the ear hears, so the lookahead is subtracted to
+   * report the sounding position instead.
+   *
+   * Only while playing: when stopped or paused the transport is not running
+   * ahead of anything, and the correction would misreport a seek.
+   */
   get positionBeats(): number {
-    return (Tone.getTransport().seconds / 60) * this.score.tempoBpm;
+    const transport = Tone.getTransport();
+    let seconds = transport.seconds;
+
+    if (transport.state === 'started') {
+      // Scale by the playback rate, since lookAhead is wall-clock time while
+      // transport.seconds advances at the current tempo.
+      const rate = this.score.tempoBpm > 0 ? transport.bpm.value / this.score.tempoBpm : 1;
+      seconds = Math.max(0, seconds - Tone.getContext().lookAhead * rate);
+    }
+
+    return (seconds / 60) * this.score.tempoBpm;
   }
 
   get isPlaying(): boolean {

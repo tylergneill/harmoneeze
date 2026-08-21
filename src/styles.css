@@ -328,6 +328,46 @@ textarea:focus {
 .band-range {
   font-size: 11.5px;
   color: var(--text-faint);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 18px;
+}
+
+.range-text {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The focus part is the referent for "All but mine" and "Just my part", so
+   say which one it is in words. */
+.my-part {
+  color: var(--focus);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Shown on the other bands, so claiming a part is a visible action rather
+   than an undiscoverable click on the label. */
+.claim-part {
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-size: 11px;
+  color: var(--text-faint);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.claim-part:hover {
+  border-color: var(--focus);
+  color: var(--focus);
+  background: none;
+}
+
+/* A stripe down the focused band, so it is findable without reading. */
+.band-focus .band-label {
+  box-shadow: inset 3px 0 0 var(--focus);
 }
 
 .fader {

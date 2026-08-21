@@ -190,23 +190,48 @@ export function Bands({
           return (
             <div
               key={part.id}
-              className={volume === 0 ? 'band-row band-muted' : 'band-row'}
+              className={
+                [
+                  'band-row',
+                  volume === 0 ? 'band-muted' : '',
+                  isFocus ? 'band-focus' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')
+              }
             >
               <div className="band-label">
                 <button
                   className={isFocus ? 'band-name is-focus' : 'band-name'}
                   style={{ color: isFocus ? undefined : bandColor(index) }}
                   onClick={() => onFocusPart(part.id)}
-                  title="Make this the focus part"
+                  title={
+                    isFocus
+                      ? `${part.label} is your part — click to unset`
+                      : `Click to make ${part.label} your part`
+                  }
+                  aria-pressed={isFocus}
                 >
                   <span className="dot" />
                   {part.label}
                 </button>
 
                 <span className="band-range">
-                  {part.range === null
-                    ? 'silent'
-                    : `${midiToName(part.range.minMidi)}–${midiToName(part.range.maxMidi)}`}
+                  {/* The focus part is what "All but mine" and "Just my part"
+                      act on, so it needs to say so in words rather than only
+                      through a colour change. */}
+                  {isFocus ? (
+                    <span className="my-part">★ my part</span>
+                  ) : (
+                    <button className="claim-part" onClick={() => onFocusPart(part.id)}>
+                      set as mine
+                    </button>
+                  )}
+                  {part.range !== null && (
+                    <span className="range-text">
+                      {midiToName(part.range.minMidi)}–{midiToName(part.range.maxMidi)}
+                    </span>
+                  )}
                 </span>
 
                 <div className="fader">

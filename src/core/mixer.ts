@@ -16,7 +16,10 @@ export function initialMixState(score: Score): MixState {
   return {
     volumes,
     linkMode: 'independent',
-    focusPartId: score.parts[0]?.id ?? null,
+    // No part is claimed until the user says so. Defaulting to the first part
+    // would silently make the soprano "theirs" and quietly change what the
+    // link modes act on.
+    focusPartId: null,
     loopRegion: null,
     tempoScale: 1,
   };
