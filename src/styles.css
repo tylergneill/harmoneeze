@@ -1,0 +1,674 @@
+/*
+ * Harmoneeze styles.
+ *
+ * The design constraint from §1a is restraint: every screen must be usable by
+ * someone who cannot read music. So the bands get the space and the contrast,
+ * and everything else stays quiet until it is needed.
+ */
+
+:root {
+  --bg: #14161a;
+  --panel: #1c1f25;
+  --panel-raised: #232730;
+  --line: #2e333d;
+  --text: #e8eaed;
+  --text-dim: #9aa1ad;
+  --text-faint: #6b7280;
+  /* Brand gold, from the logo. Identity only — the functional accent below
+     stays blue so the playhead and faders never read as "selected part". */
+  --brand: #e8b04b;
+  --brand-deep: #0f2b33;
+
+  --accent: #6aa9ff;
+  --accent-soft: rgba(106, 169, 255, 0.16);
+  --focus: #ffcb6b;
+  --danger: #ff6b6b;
+  --radius: 8px;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: var(--panel-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 7px 13px;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  border-color: #414855;
+  background: #2a2f39;
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #0d1117;
+  font-weight: 600;
+}
+
+button.primary:hover:not(:disabled) {
+  background: #82b7ff;
+  border-color: #82b7ff;
+}
+
+button.ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-dim);
+  padding: 5px 9px;
+}
+
+button.ghost:hover:not(:disabled) {
+  background: var(--panel-raised);
+  color: var(--text);
+}
+
+button.danger:hover:not(:disabled) {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+input[type='text'],
+textarea {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  width: 100%;
+}
+
+input[type='text']:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---------- Layout ---------- */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  flex: none;
+}
+
+.topbar h1 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: 0.2px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.version {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  /* Sits with the wordmark's baseline rather than its centre. */
+  align-self: flex-end;
+  padding-bottom: 1px;
+  margin-left: -3px;
+}
+
+/* The mark is drawn in currentColor, so it takes the brand gold from here. */
+.brand-mark {
+  color: var(--brand);
+  flex: none;
+}
+
+.topbar .spacer {
+  flex: 1;
+}
+
+.wordmark {
+  font-weight: 700;
+  color: var(--brand);
+  letter-spacing: 0.3px;
+}
+
+/* ---------- Landing ---------- */
+
+.landing {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 48px 24px;
+  width: 100%;
+}
+
+.landing h2 {
+  font-size: 22px;
+  margin: 0 0 4px;
+}
+
+.landing .lede {
+  color: var(--text-dim);
+  margin: 0 0 28px;
+}
+
+.dropzone {
+  border: 1.5px dashed var(--line);
+  border-radius: 12px;
+  padding: 34px 20px;
+  text-align: center;
+  color: var(--text-dim);
+  background: var(--panel);
+  transition: border-color 0.12s, background 0.12s;
+  cursor: pointer;
+}
+
+.dropzone:hover,
+.dropzone.over {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.dropzone strong {
+  color: var(--text);
+  display: block;
+  margin-bottom: 4px;
+  font-size: 15px;
+}
+
+.dropzone .hint {
+  font-size: 12.5px;
+  color: var(--text-faint);
+}
+
+.project-list {
+  list-style: none;
+  margin: 28px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.project-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.project-row:hover {
+  border-color: #3a414d;
+}
+
+.project-row .open {
+  flex: 1;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.project-row .title {
+  font-weight: 600;
+  display: block;
+}
+
+.project-row .meta {
+  color: var(--text-faint);
+  font-size: 12.5px;
+}
+
+.empty {
+  color: var(--text-faint);
+  text-align: center;
+  padding: 28px;
+}
+
+/* ---------- Bands ---------- */
+
+.bands-scroll {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+}
+
+.bands {
+  position: relative;
+  min-width: 100%;
+}
+
+.band-row {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--line);
+}
+
+.band-label {
+  flex: none;
+  width: 168px;
+  padding: 10px 12px;
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  position: sticky;
+  left: 0;
+  z-index: 3;
+}
+
+.band-name {
+  background: none;
+  border: none;
+  padding: 2px 0;
+  text-align: left;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.band-name:hover {
+  color: var(--accent);
+  background: none;
+}
+
+.band-name.is-focus {
+  color: var(--focus);
+}
+
+.band-name .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+  background: currentColor;
+  opacity: 0.85;
+}
+
+.band-range {
+  font-size: 11.5px;
+  color: var(--text-faint);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 18px;
+}
+
+.range-text {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The focus part is the referent for "All but mine" and "Just my part", so
+   say which one it is in words. */
+.my-part {
+  color: var(--focus);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Shown on the other bands, so claiming a part is a visible action rather
+   than an undiscoverable click on the label. */
+.claim-part {
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-size: 11px;
+  color: var(--text-faint);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.claim-part:hover {
+  border-color: var(--focus);
+  color: var(--focus);
+  background: none;
+}
+
+/* A stripe down the focused band, so it is findable without reading. */
+.band-focus .band-label {
+  box-shadow: inset 3px 0 0 var(--focus);
+}
+
+.fader {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.fader input[type='range'] {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.fader .value {
+  font-variant-numeric: tabular-nums;
+  font-size: 11.5px;
+  color: var(--text-dim);
+  width: 22px;
+  text-align: right;
+}
+
+/* Also width-from-content, for the same reason as `.ruler` above. */
+.band-canvas-wrap {
+  flex: none;
+  position: relative;
+}
+
+.band-canvas-wrap canvas {
+  display: block;
+  width: 100%;
+}
+
+.band-muted .band-canvas-wrap {
+  opacity: 0.35;
+}
+
+/* ---------- Timeline / ruler ---------- */
+
+.ruler-row {
+  display: flex;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  position: sticky;
+  top: 0;
+  z-index: 4;
+}
+
+.ruler-gutter {
+  flex: none;
+  width: 168px;
+  border-right: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 11.5px;
+  color: var(--text-faint);
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  background: var(--panel);
+}
+
+/* Width is set inline from the score's length, never stretched by flex: the
+   ruler, the band canvases and the playhead overlay must all share one
+   coordinate space or a click maps to the wrong beat. */
+.ruler {
+  flex: none;
+  position: relative;
+  height: 34px;
+  /* A pointer, not a resize arrow: the primary action here is scrubbing. */
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+}
+
+.ruler canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* The playhead and loop shading span every band, so they live in an overlay
+   that sits above the canvases but ignores pointer events. */
+.overlay {
+  position: absolute;
+  inset: 0;
+  left: 168px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 8px rgba(106, 169, 255, 0.5);
+}
+
+/* A grab handle sitting in the ruler, so the playhead reads as draggable
+   rather than as a passive progress indicator. */
+.playhead::before {
+  content: '';
+  position: absolute;
+  top: 7px;
+  left: -5px;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--accent);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+.loop-shade {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.42);
+}
+
+.loop-edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--focus);
+  opacity: 0.7;
+}
+
+/* ---------- Transport ---------- */
+
+.transport {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+  flex: none;
+  flex-wrap: wrap;
+}
+
+.transport .clock {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+  font-size: 13px;
+  min-width: 96px;
+}
+
+.transport .group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.transport label {
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.seg button {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 6px 11px;
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+
+.seg button + button {
+  border-left: 1px solid var(--line);
+}
+
+.seg button.on {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.tempo {
+  width: 118px;
+  accent-color: var(--accent);
+}
+
+/* ---------- Notes pane ---------- */
+
+.notes {
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+  flex: none;
+}
+
+.notes-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 13px;
+  user-select: none;
+}
+
+.notes-head:hover {
+  color: var(--text);
+}
+
+.notes-body {
+  padding: 0 16px 12px;
+}
+
+.notes-body textarea {
+  min-height: 130px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.saved-flag {
+  color: var(--text-faint);
+  font-size: 11.5px;
+  margin-left: auto;
+}
+
+/* ---------- Messages ---------- */
+
+.banner {
+  padding: 9px 16px;
+  font-size: 13px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.banner.error {
+  background: rgba(255, 107, 107, 0.11);
+  color: #ffb3b3;
+}
+
+.banner.warn {
+  background: rgba(255, 203, 107, 0.09);
+  color: #ffd98f;
+}
+
+.banner ul {
+  margin: 0;
+  padding-left: 16px;
+}
+
+.banner .close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0 4px;
+  opacity: 0.7;
+}
+
+.hint-bar {
+  padding: 6px 16px;
+  font-size: 12px;
+  color: var(--text-faint);
+  border-top: 1px solid var(--line);
+  background: var(--bg);
+}
+
+kbd {
+  font: 11px ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: var(--panel-raised);
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: var(--text-dim);
+}
+
+.spinner {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-dim);
+}
