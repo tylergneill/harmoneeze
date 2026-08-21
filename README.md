@@ -70,22 +70,38 @@ Time is in quarter notes everywhere; MusicXML `divisions` never escape the parse
 tests/parser.test.ts   the fixtures, with exact known-good assertions
 tests/unit.test.ts     one behaviour each, over hand-written minimal scores
 tests/mixer.test.ts    link modes, loop regions, timeline helpers
-tests/real.test.ts     Bach BWV 269 and four real Wellerman arrangements
 ```
 
-`real.test.ts` reads from `downloads/`, which is gitignored; those blocks skip
-cleanly on a fresh clone.
+Every test runs off `fixtures/`, which is committed. Nothing reads `downloads/`,
+so the suite means the same thing on a fresh clone as it does here — a test that
+skips itself when a file is missing is not coverage.
 
-The load-bearing assertion is the unroll count: the fixture's **16 written measures
-must unroll to 22**. If that reports 16, repeats are not being expanded and the
-playhead will drift out of sync with the bands.
+| Fixture | What it pins down |
+|---|---|
+| `wellerman-fixture-simple` | repeats and voltas: **16 written measures unroll to 22** |
+| `wellerman-fixture-shared-staff` | two voices per staff yield **4 parts, not 2** |
+| `cut-time-fixture` | 2/2, `divisions=2`, dotted notes, and **no tempo marking** |
+| `bach-bwv269` | a real score: pickup bar, ties, dense accidentals, counterpoint |
+
+The load-bearing assertion is the unroll count: if it reports 16, repeats are not
+being expanded and the playhead will drift out of sync with the bands.
+
+`cut-time-fixture` exists for a specific regression. A score naming no tempo has
+to be read through its notated beat unit — 2/2 means the beat is a half note, so
+the fallback is 200 quarter notes per minute. Read as quarters, a shanty plays at
+half speed and the playhead visibly lags the harmony.
+
+`.mxl` ingest is covered by zipping a fixture at test time, so the container
+manifest path is exercised without committing anyone's arrangement.
 
 ## Verified end to end
 
 The acceptance test from the fixture README — load the simple fixture, mute
 everything but Bass, loop the chorus, play — was run in the browser and works.
-The real-world `.mxl` files in `downloads/` were also driven through the full
-flow: a 5-part SATB+solo arrangement unzips, parses, renders, and plays.
+
+The real arrangements in `downloads/` are the *human* end-to-end test: load one,
+mark your line, and sing. That directory is gitignored, since those are
+third-party scores with their own licensing.
 
 ## Licence
 

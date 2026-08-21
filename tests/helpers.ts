@@ -11,10 +11,6 @@ export function fixturePath(name: string): string {
   return resolve(ROOT, 'fixtures', name);
 }
 
-export function downloadPath(...parts: string[]): string {
-  return resolve(ROOT, 'downloads', ...parts);
-}
-
 /** Read a file as an ArrayBuffer, the shape the browser hands the app. */
 export function readAsArrayBuffer(path: string): ArrayBuffer {
   const buf = readFileSync(path);

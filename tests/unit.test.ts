@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { strToU8, zipSync } from 'fflate';
 import { parseXml } from '../src/core/xmlParse';
 import { parseMusicXml } from '../src/core/musicxml';
 import { parseScoreFile } from '../src/core/ingest';
 import { unrollMeasures } from '../src/core/unroll';
+import { fixturePath } from './helpers';
 
 /**
  * Unit tests over hand-written minimal scores.
@@ -356,6 +359,63 @@ describe('part labelling', () => {
       ),
     );
     expect(s.parts.map((p) => p.label)).toEqual(['Piano 1', 'Piano 2']);
+  });
+});
+
+describe('compressed MusicXML (.mxl)', () => {
+  // .mxl is what MuseScore and Sibelius export by default, so it is the first
+  // thing a real user hands the app. The archive is built here from a fixture
+  // rather than read from disk, so this covers the container-manifest path
+  // without depending on any downloaded file.
+  const CONTAINER =
+    '<?xml version="1.0" encoding="UTF-8"?><container><rootfiles>' +
+    '<rootfile full-path="score.xml"/></rootfiles></container>';
+
+  const simple = readFileSync(fixturePath('wellerman-fixture-simple.musicxml'), 'utf8');
+
+  const toMxl = (files: Record<string, string>): ArrayBuffer => {
+    const encoded: Record<string, Uint8Array> = {};
+    for (const [name, text] of Object.entries(files)) encoded[name] = strToU8(text);
+    const zipped = zipSync(encoded);
+    return zipped.buffer.slice(
+      zipped.byteOffset,
+      zipped.byteOffset + zipped.byteLength,
+    ) as ArrayBuffer;
+  };
+
+  it('unzips a score named by the container manifest', () => {
+    const bytes = toMxl({ 'META-INF/container.xml': CONTAINER, 'score.xml': simple });
+    const score = parseScoreFile('wellerman.mxl', bytes, parseXml);
+    // Same music as the uncompressed fixture, so the repeat unroll still holds.
+    expect(score.measures).toHaveLength(22);
+    expect(score.parts.map((p) => p.label)).toEqual(['Soprano', 'Alto', 'Tenor', 'Bass']);
+  });
+
+  it('follows the manifest rather than guessing, when several files are present', () => {
+    const decoy = score(`<measure number="1">${ATTRS}${note('C', 4, 4)}</measure>`, 'Decoy');
+    const bytes = toMxl({
+      'META-INF/container.xml': CONTAINER,
+      // Sorts before score.xml, so a parser that took the first entry would
+      // pick this one.
+      'other.xml': decoy,
+      'score.xml': simple,
+    });
+    expect(parseScoreFile('x.mxl', bytes, parseXml).parts).toHaveLength(4);
+  });
+
+  it('falls back to the first plausible score when the manifest is missing', () => {
+    const bytes = toMxl({ 'score.xml': simple });
+    expect(parseScoreFile('x.mxl', bytes, parseXml).parts).toHaveLength(4);
+  });
+
+  it('ignores META-INF when falling back', () => {
+    const bytes = toMxl({ 'META-INF/junk.xml': '<junk/>', 'score.xml': simple });
+    expect(parseScoreFile('x.mxl', bytes, parseXml).parts).toHaveLength(4);
+  });
+
+  it('explains itself when the archive holds no score', () => {
+    const bytes = toMxl({ 'META-INF/container.xml': CONTAINER, 'readme.txt': 'hello' });
+    expect(() => parseScoreFile('x.mxl', bytes, parseXml)).toThrow(/does not contain a MusicXML/);
   });
 });
 

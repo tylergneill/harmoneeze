@@ -130,6 +130,106 @@ describe('sparse parts', () => {
   });
 });
 
+describe('cut time', () => {
+  // The properties real exports have that the Wellerman fixtures lack: 2/2,
+  // divisions=2, dotted notes, and no tempo marking at all.
+  const CUT = fixturePath('cut-time-fixture.musicxml');
+
+  it('reads a score that names no tempo through its notated beat unit', () => {
+    // The regression this fixture exists for. 2/2 means the beat is a half
+    // note, so the fallback is 200 quarter notes per minute. Read as quarters
+    // this plays at half speed and the playhead lags the music audibly.
+    expect(loadScore(CUT).tempoBpm).toBe(200);
+  });
+
+  it('gives a cut-time measure four quarter notes', () => {
+    const score = loadScore(CUT);
+    expect(score.measures).toHaveLength(4);
+    expect(score.measures.every((m) => m.durationBeats === 4)).toBe(true);
+    expect(score.durationBeats).toBe(16);
+  });
+
+  it('scales durations by divisions=2', () => {
+    const upper = partByLabel(loadScore(CUT), 'Upper');
+    // Quarter, quarter, half — in a file where a quarter is 2 divisions.
+    expect(upper.events.slice(0, 3).map((e) => e.durationBeats)).toEqual([1, 1, 2]);
+  });
+
+  it('reads a dotted half as three quarters', () => {
+    const upper = partByLabel(loadScore(CUT), 'Upper');
+    const dotted = upper.events.find((e) => e.measureNumber === '2');
+    expect(dotted!.durationBeats).toBe(3);
+  });
+
+  it('keeps a part that rests through the opening aligned', () => {
+    const score = loadScore(CUT);
+    const lower = partByLabel(score, 'Lower');
+    expect(lower.events).toHaveLength(5);
+    // Lower rests through mm. 1-2, so its first note lands at beat 8.
+    expect(lower.events[0].onsetBeats).toBe(8);
+  });
+
+  it('plays in a sensible number of seconds', () => {
+    const score = loadScore(CUT);
+    const seconds = (score.durationBeats / score.tempoBpm) * 60;
+    // 4 bars of cut time: a few seconds, not the ten a half-speed read gives.
+    expect(seconds).toBeCloseTo(4.8, 1);
+  });
+});
+
+describe('Bach BWV 269 — real-score generality', () => {
+  // Public domain, from the music21 corpus. The fixtures prove the parser is
+  // correct against known ground truth; this proves it is general against a
+  // file nobody wrote for it — pickup bar, ties, dense accidentals, and 24
+  // bars of actual counterpoint.
+  const BACH = fixturePath('bach-bwv269.musicxml');
+
+  it('reads four voices from a real chorale', () => {
+    const score = loadScore(BACH);
+    expect(score.parts.map((p) => p.label)).toEqual(['Soprano', 'Alto', 'Tenor', 'Bass']);
+    expect(score.parts.every((p) => p.events.length > 0)).toBe(true);
+  });
+
+  it('handles the pickup measure', () => {
+    expect(loadScore(BACH).measures[0].number).toBe('0');
+  });
+
+  it('repeats from the start when a backward repeat has no forward partner', () => {
+    // MusicXML defines this as repeating from the beginning of the piece.
+    const score = loadScore(BACH);
+    expect(score.measures.length).toBeGreaterThan(24);
+    expect(score.measures.filter((m) => m.number === '0')).toHaveLength(2);
+  });
+
+  it('merges tied notes rather than re-articulating them', () => {
+    // 229 pitched notes per pass, of which 4 are tie-stops to be absorbed.
+    const score = loadScore(BACH);
+    const total = score.parts.reduce((n, p) => n + p.events.length, 0);
+    expect(total).toBeGreaterThanOrEqual(229 - 4);
+    expect(total).toBeLessThan(229 * 2);
+    // A tie merge produces a note longer than any single written value here.
+    const alto = partByLabel(score, 'Alto');
+    expect(Math.max(...alto.events.map((e) => e.durationBeats))).toBeGreaterThan(1);
+  });
+
+  it('keeps the four voices in descending range order', () => {
+    const lows = loadScore(BACH).parts.map((p) => p.range!.minMidi);
+    expect(lows[0]).toBeGreaterThan(lows[1]);
+    expect(lows[1]).toBeGreaterThan(lows[2]);
+    expect(lows[2]).toBeGreaterThan(lows[3]);
+  });
+
+  it('lays every note inside the timeline', () => {
+    const score = loadScore(BACH);
+    for (const part of score.parts) {
+      for (const e of part.events) {
+        expect(e.durationBeats).toBeGreaterThan(0);
+        expect(e.onsetBeats + e.durationBeats).toBeLessThanOrEqual(score.durationBeats + 1e-6);
+      }
+    }
+  });
+});
+
 describe('pitch', () => {
   it('places middle C at MIDI 60', () => {
     expect(pitchToMidi('C', 4, 0)).toBe(60);

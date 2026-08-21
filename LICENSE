@@ -64,5 +64,15 @@ Third-party material
     their own rights holders set. Harmoneeze stores them only in the
     user's browser and never transmits them.
 
-  - The test fixtures in `fixtures/`, which their author released as
-    public domain / CC0 (see `design_docs/README.md`).
+  - The test fixtures in `fixtures/`:
+
+      wellerman-fixture-simple.musicxml
+      wellerman-fixture-shared-staff.musicxml
+      cut-time-fixture.musicxml
+        Original works written as test fixtures, released public
+        domain / CC0. Not transcriptions of any published arrangement.
+
+      bach-bwv269.musicxml
+        J.S. Bach, BWV 269. The music is public domain; the file was
+        exported from the music21 corpus, which is BSD-licensed.
+
